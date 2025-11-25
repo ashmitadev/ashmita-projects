@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Framed & Highly Detailed Neon Mandala</title>
+    <!-- Load Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load p5.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.js"></script>
+    <style>
+        /* Custom styles: Pure black background and removed container box for clean look */
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000; /* Pure black background */
+            margin: 0;
+            overflow: hidden; /* Prevent scrolling */
+        }
+        /* Container is now invisible, acting only as the parent for the canvas */
+        #p5-canvas-container {
+            max-width: 100vw;
+            max-height: 100vh;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body class="p-0 m-0">
+
+    <div id="p5-canvas-container" class="w-full md:w-5/5 lg:w-6/5 xl:w-2/5">
+        <!-- p5.js sketch will be injected here -->
+    </div>
+
+    <script>
+        // --- P5.js Configuration and Drawing Logic ---
+        
+        // Configuration Variables
+        const NUM_SEGMENTS = 16;
+        const ANGLE_STEP = 360 / NUM_SEGMENTS;
+        let CANVAS_SIZE;
+        let rotationAngle = 0; 
+
+        // Helper function to draw a glowing version of a circle/ellipse
+        function drawGlowCircle(x, y, d, hue, sat, bright, glowIntensity) {
+            push();
+            noStroke();
+            for (let i = 0; i < glowIntensity; i++) {
+                fill(hue, sat, bright, 0.1 / (i + 1)); 
+                ellipse(x, y, d + i * 2);
+            }
+            fill(hue, sat, bright, 1);
+            ellipse(x, y, d);
+            pop();
+        }
+        
+        // Helper function to draw a single, glowing petal shape
+        function drawSingleGlowPetal(hue, startX, endX, controlOffset) {
+            // Draw glow fill and stroke (first pass)
+            strokeWeight(4);
+            fill(hue, 70, 95, 0.15); 
+            stroke(hue, 90, 85, 0.3);
+            beginShape();
+            vertex(startX, 0);
+            bezierVertex((startX + endX) / 2, controlOffset, endX * 0.98, controlOffset * 0.5, endX, 0);
+            bezierVertex(endX * 0.98, -controlOffset * 0.5, (startX + endX) / 2, -controlOffset, startX, 0);
+            endShape(CLOSE);
+
+            // Draw solid core (second pass)
+            strokeWeight(2);
+            fill(hue, 70, 95); 
+            stroke(hue, 90, 85);
+            beginShape();
+            vertex(startX, 0);
+            bezierVertex((startX + endX) / 2, controlOffset, endX * 0.98, controlOffset * 0.5, endX, 0);
+            bezierVertex(endX * 0.98, -controlOffset * 0.5, (startX + endX) / 2, -controlOffset, startX, 0);
+            endShape(CLOSE);
+        }
+
+        /**
+         * Draws four non-rotating petals fixed to the corners of the screen.
+         */
+        function drawCornerElements() {
+            const halfSize = CANVAS_SIZE / 2;
+            const petalSize = 0.05 * CANVAS_SIZE; 
+            const blueHue = 240; 
+            const controlOffset = 15 * (CANVAS_SIZE / 800);
+            const startX = 0;
+            const endX = petalSize * 1.5; 
+
+            const positionOffset = halfSize * 0.85; 
+            
+            // --- Top-Right Corner ---
+            push();
+            translate(positionOffset, -positionOffset);
+            rotate(-45);
+            drawSingleGlowPetal(blueHue, startX, endX, controlOffset);
+            pop();
+            
+            // --- Top-Left Corner ---
+            push();
+            translate(-positionOffset, -positionOffset);
+            rotate(-135);
+            drawSingleGlowPetal(blueHue, startX, endX, controlOffset);
+            pop();
+            
+            // --- Bottom-Left Corner ---
+            push();
+            translate(-positionOffset, positionOffset);
+            rotate(135);
+            drawSingleGlowPetal(blueHue, startX, endX, controlOffset);
+            pop();
+            
+            // --- Bottom-Right Corner ---
+            push();
+            translate(positionOffset, positionOffset);
+            rotate(45);
+            drawSingleGlowPetal(blueHue, startX, endX, controlOffset);
+            pop();
+
+            
+            
+        }
+
+        /**
+         * P5.js setup function: runs once when the program starts.
+         */
+        function setup() {
+            CANVAS_SIZE = Math.min(window.innerWidth, window.innerHeight);
+            createCanvas(CANVAS_SIZE, CANVAS_SIZE).parent('p5-canvas-container');
+            angleMode(DEGREES);
+            colorMode(HSB, 360, 100, 100, 1); 
+        }
+
+        /**
+         * P5.js draw function: runs repeatedly for animation.
+         */
+        function draw() {
+            background(0); 
+            
+            translate(width / 2, height / 2);
+            
+            // 1. Draw Corner Elements (FIXED - NOT ROTATING)
+            drawCornerElements(); 
+            
+            // 2. Add Fixed Inner Gear Detail
+            drawInnerGear();
+            
+            // 3. Apply rotation to the main mandala only
+            rotate(rotationAngle);
+            rotationAngle += 0.2; 
+
+            // All radii are calculated relative to CANVAS_SIZE
+            const R_INNER_DOTS = CANVAS_SIZE * 0.05;
+            const R_INNER_PETALS = CANVAS_SIZE * 0.12;
+            const R_MID_RING = CANVAS_SIZE * 0.18;
+            const R_OUTER_PETALS = CANVAS_SIZE * 0.30;
+            const R_PINK_PETALS = CANVAS_SIZE * 0.33;
+            const R_BLUE_PETALS = CANVAS_SIZE * 0.38;
+            const R_OUTER_DOTS = CANVAS_SIZE * 0.43;
+
+            // --- MANDALA DRAWING LAYERS START ---
+
+            // 1. Center Detail
+            push();
+            drawGlowCircle(0, 0, 8, 0, 90, 100, 5); // Innermost Red
+            drawGlowCircle(0, 0, 15, 200, 80, 95, 7); // Center Blue
+            
+            // Inner Circle (Yellow Line - FIXED COLOR)
+            push();
+            // --- ADJUSTED: increased saturation (90) and slightly reduced brightness (90) ---
+            const yellowHue = 50;
+            const yellowSat = 90; 
+            const yellowBright = 95; 
+            
+            stroke(yellowHue, yellowSat, yellowBright);
+            strokeWeight(3);
+            noFill();
+            // Draw glowing rings
+            for (let i = 0; i < 4; i++) {
+                stroke(yellowHue, yellowSat, yellowBright, 0.05 * (4 - i));
+                ellipse(0, 0, R_INNER_DOTS * 2.5 + i * 2);
+            }
+            // Draw solid core ring
+            stroke(yellowHue, yellowSat, yellowBright);
+            ellipse(0, 0, R_INNER_DOTS * 2.5);
+            pop();
+
+            // Inner Overlapping Dots
+            drawSymmetricLayer((segmentIndex) => {
+                const dotHue = (segmentIndex * 15) % 360;
+                drawGlowCircle(R_INNER_DOTS * 0.8, 0, 5, dotHue, 80, 90, 3);
+            }, NUM_SEGMENTS * 2);
+            pop();
+
+
+            // 2. Inner Pattern (Small pointed petals and dots)
+            drawSymmetricLayer((segmentIndex) => {
+                const hue = (segmentIndex * (360 / NUM_SEGMENTS) + frameCount * 0.5) % 360; 
+
+                // Inner Dots Layer (Blue-Green)
+                drawGlowCircle(R_INNER_DOTS, 0, 8, 150, 70, 90, 5);
+
+                // Inner Petals (Vibrant, changing hue)
+                push();
+                stroke(hue, 80, 95, 0.3);
+                strokeWeight(10);
+                noFill();
+                rotate(ANGLE_STEP / 2); 
+                const petalRadius = 20 * (CANVAS_SIZE / 800);
+                arc(R_INNER_PETALS - (petalRadius / 2), 0, petalRadius, petalRadius, -40, 40, CHORD);
+                
+                stroke(hue, 100, 70);
+                strokeWeight(1.5);
+                fill(hue, 80, 95); 
+                arc(R_INNER_PETALS - (petalRadius / 2), 0, petalRadius, petalRadius, -40, 40, CHORD);
+                pop();
+
+            }, NUM_SEGMENTS);
+            
+            // 3. Middle Ring (Solid Green line)
+            push();
+            stroke(120, 60, 100);
+            strokeWeight(3);
+            noFill();
+            for (let i = 0; i < 5; i++) {
+                stroke(120, 60, 100, 0.04 * (5 - i));
+                ellipse(0, 0, R_MID_RING * 2 + i * 2);
+            }
+            stroke(120, 60, 100);
+            ellipse(0, 0, R_MID_RING * 2);
+            pop();
+
+
+            // 4. Outer Petal Ring (Main Multi-Colored Layer with internal decorative line)
+            drawSymmetricLayer((segmentIndex) => {
+                const hue = (segmentIndex * (360 / NUM_SEGMENTS) + frameCount * 0.8) % 360; 
+                
+                push();
+                const startX = R_MID_RING;
+                const endX = R_OUTER_PETALS;
+                const controlOffset = 30 * (CANVAS_SIZE / 800); 
+
+                // Draw glow & solid core (petal)
+                strokeWeight(5);
+                fill(hue, 50, 100, 0.15);
+                stroke(hue, 90, 95, 0.3);
+                beginShape();
+                vertex(startX, 0);
+                bezierVertex((startX + endX) / 2, controlOffset, endX * 0.95, controlOffset * 0.5, endX, 0);
+                bezierVertex(endX * 0.95, -controlOffset * 0.5, (startX + endX) / 2, -controlOffset, startX, 0);
+                endShape(CLOSE);
+                
+                strokeWeight(2);
+                fill(hue, 50, 100); 
+                stroke(hue, 90, 95);
+                beginShape();
+                vertex(startX, 0);
+                bezierVertex((startX + endX) / 2, controlOffset, endX * 0.95, controlOffset * 0.5, endX, 0);
+                bezierVertex(endX * 0.95, -controlOffset * 0.5, (startX + endX) / 2, -controlOffset, startX, 0);
+                endShape(CLOSE);
+                
+                // Decorative oscillating line inside the petal
+                push();
+                noFill();
+                stroke(hue, 20, 90); // Lighter line
+                strokeWeight(1);
+                const lineStart = startX + 5 * (CANVAS_SIZE / 800);
+                const lineEnd = endX - 5 * (CANVAS_SIZE / 800);
+                
+                beginShape();
+                for(let r = lineStart; r <= lineEnd; r += 5) {
+                    const y = sin(r * 5 - frameCount * 5) * 5 * (CANVAS_SIZE / 800); 
+                    vertex(r, y);
+                }
+                endShape();
+                pop();
+                
+                pop();
+            }, NUM_SEGMENTS);
+            
+            // 5. Pink Petal Layer
+            drawSymmetricLayer((segmentIndex) => {
+                const pinkHue = 320;
+                
+                push();
+                rotate(ANGLE_STEP / 2);
+                
+                const startX = R_OUTER_PETALS; 
+                const endX = R_PINK_PETALS;
+                const controlOffset = 10 * (CANVAS_SIZE / 800);
+
+                drawSingleGlowPetal(pinkHue, startX, endX, controlOffset);
+
+                pop();
+            }, NUM_SEGMENTS);
+
+
+            // 6. Blue Petal Layer
+            drawSymmetricLayer((segmentIndex) => {
+                const blueHue = 240; 
+                
+                push();
+                rotate(0); 
+                
+                const startX = R_PINK_PETALS;
+                const endX = R_BLUE_PETALS;
+                const controlOffset = 18 * (CANVAS_SIZE / 800);
+
+                drawSingleGlowPetal(blueHue, startX, endX, controlOffset);
+
+                pop();
+            }, NUM_SEGMENTS);
+
+
+            // 7. Outer Dot Ring and connecting lines
+            drawSymmetricLayer((segmentIndex) => {
+                
+                // Line extending (White line)
+                push();
+                stroke(0, 0, 100);
+                strokeWeight(1.5);
+                for (let i = 0; i < 4; i++) {
+                    stroke(0, 0, 100, 0.05 * (4 - i));
+                    strokeWeight(3 + i * 0.5);
+                    line(R_BLUE_PETALS, 0, R_OUTER_DOTS, 0);
+                }
+                strokeWeight(1.5);
+                stroke(0, 0, 100);
+                line(R_BLUE_PETALS, 0, R_OUTER_DOTS, 0);
+                pop();
+
+                // Dot at the end of the line (Orange dot with glow)
+                drawGlowCircle(R_OUTER_DOTS, 0, 10, 40, 100, 100, 8);
+
+            }, NUM_SEGMENTS);
+        }
+
+        /**
+         * Helper function to apply rotational symmetry to drawing operations.
+         */
+        function drawSymmetricLayer(drawElement, numSegments) {
+            const angleStep = 360 / numSegments;
+            for (let i = 0; i < numSegments; i++) {
+                push();
+                rotate(i * angleStep);
+                drawElement(i);
+                pop();
+            }
+        }
+        
+        /**
+         * Draws a fixed ring of triangles near the center to simulate a gear or core structure.
+         */
+        function drawInnerGear() {
+            // Note: This function runs BEFORE the main rotation is applied, keeping it fixed.
+            const R_GEAR = CANVAS_SIZE * 0.08;
+            const GEAR_TEETH = 24;
+            const teethAngle = 360 / GEAR_TEETH;
+            const gearHue = 60; // Yellow/Gold
+            
+            push();
+            noStroke();
+            
+            // --- ADJUSTED: increased saturation (50) for a richer gold look ---
+            // Draw core ring for the gear
+            fill(gearHue, 50, 90);
+            ellipse(0, 0, R_GEAR * 2);
+            
+            // Draw the teeth
+            for (let i = 0; i < GEAR_TEETH; i++) {
+                push();
+                rotate(i * teethAngle);
+                
+                // Draw the tooth
+                fill(gearHue, 60, 100);
+                triangle(
+                    R_GEAR * 0.9, 0, 
+                    R_GEAR, 5, 
+                    R_GEAR, -5
+                );
+                
+                // Add a small glow to the tip
+                drawGlowCircle(R_GEAR + 2, 0, 3, gearHue, 80, 100, 2);
+
+                pop();
+            }
+            pop();
+        }
+
+
+        /**
+         * P5.js windowResized function: ensures the canvas is resized when the browser window changes.
+         */
+        function windowResized() {
+            CANVAS_SIZE = Math.min(window.innerWidth, window.innerHeight);
+            resizeCanvas(CANVAS_SIZE, CANVAS_SIZE);
+        }
+
+    </script>
+</body>
+</html>
